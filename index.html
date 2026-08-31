@@ -119,9 +119,10 @@
     <div class="card">
       <label for="student">學員姓名</label>
       <input id="student" type="text" placeholder="請填完整姓名" autocomplete="off">
-      <label for="order">訂單編號</label>
-      <input id="order" type="text" placeholder="例如 #5867" autocomplete="off">
-      <p class="hint">訂單編號在報名完成的通知信裡，有沒有 # 都可以。</p>
+      <label for="order">訂單編號 或 家長 Email</label>
+      <input id="order" type="text" placeholder="填其中一個就好" autocomplete="off" inputmode="email">
+      <p class="hint">兩個填哪一個都可以喔。訂單編號在報名完成的通知信裡（有沒有 # 都行）；
+      家長 Email 則是當初報名時填寫的那一個。</p>
       <button id="pBtn" onclick="doBindParent()">確認</button>
       <div id="pMsg" class="msg hidden"></div>
     </div>
@@ -327,11 +328,11 @@
     const msg = document.getElementById('pMsg');
     const btn = document.getElementById('pBtn');
     msg.classList.add('hidden');
-    if (!student || !order) { return showMsg(msg, '請填寫學員姓名與訂單編號'); }
+    if (!student || !order) { return showMsg(msg, '請填寫學員姓名，以及訂單編號或家長 Email'); }
 
     btn.disabled = true; btn.textContent = '確認中…';
     try {
-      const r = await api({ action: 'bindParent', uid: userId, student: student, order: order });
+      const r = await api({ action: 'bindParent', uid: userId, student: student, key: order });
       if (!r.ok) { showMsg(msg, r.error); return; }
       await loadSchedule();
     } catch (err) {
