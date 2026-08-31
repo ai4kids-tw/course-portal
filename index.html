@@ -147,6 +147,7 @@
       <h1>我的課表<span class="role" id="roleTag"></span></h1>
     </header>
     <div id="list"></div>
+    <button class="ghost" id="unbindBtn" onclick="doUnbind()">不是你本人？重新確認身分</button>
   </div>
 
   <!-- 錯誤 -->
@@ -276,6 +277,21 @@
     });
   }
 
+  /** 解除自己的綁定，回到身分確認。 */
+  async function doUnbind() {
+    if (!confirm('要重新確認身分嗎？\n目前的課表會先清除，重新確認後就會恢復。')) return;
+    const btn = document.getElementById('unbindBtn');
+    btn.disabled = true; btn.textContent = '處理中…';
+    try {
+      await api({ action: 'unbind', uid: userId });
+      show('pickRole');
+    } catch (err) {
+      alert('連線不順，請稍後再試一次');
+    } finally {
+      btn.disabled = false; btn.textContent = '不是你本人？重新確認身分';
+    }
+  }
+
   function back() { show('pickRole'); }
   function showParent() { show('parentForm'); }
 
@@ -289,7 +305,14 @@
       (data.teachers || []).forEach(function (t) {
         const o = document.createElement('option');
         o.value = t.name;
-        o.textContent = t.name + (t.bound ? '（已確認）' : '');
+        // 同名同姓時光看名字分不出是誰，硬選會綁到別人身上，所以擋下來
+        if (t.ambiguous) {
+          o.textContent = t.name + '（有同名老師，請聯繫客服）';
+          o.disabled = true;
+        } else {
+          o.textContent = t.name + (t.bound ? '（已確認）' : '');
+          o.disabled = t.bound;
+        }
         sel.appendChild(o);
       });
     } catch (err) {
