@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>AI4Kids 我的課表</title>
+<script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<style>
+  :root {
+    --teal:#02bdc7; --teal-deep:#00868e; --ink:#16242c; --ink-2:#5d7079;
+    --line:#dde7ea; --bg:#f4f8f9; --card:#ffffff; --gold:#e8ba51; --pink:#fc4067;
+    --radius:14px;
+  }
+  @media (prefers-color-scheme:dark){
+    :root{ --teal:#2fd6df; --teal-deep:#7fe6ec; --ink:#e9f2f5; --ink-2:#9db3bd;
+           --line:#22414f; --bg:#0a1a2e; --card:#11293a; }
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"PingFang TC","Noto Sans TC","Microsoft JhengHei",sans-serif;
+    font-size:16px; line-height:1.7;
+    padding:0 0 env(safe-area-inset-bottom);
+  }
+  .wrap{max-width:560px;margin:0 auto;padding:20px 16px 48px}
+
+  header{padding:8px 0 20px}
+  .hi{font-size:.86rem;color:var(--ink-2);margin:0 0 2px}
+  h1{font-size:1.5rem;margin:0;letter-spacing:-.01em}
+  .role{
+    display:inline-block;font-size:.74rem;letter-spacing:.06em;
+    color:var(--teal-deep);border:1px solid currentColor;
+    border-radius:999px;padding:1px 10px;margin-left:8px;vertical-align:middle;
+  }
+
+  .card{
+    background:var(--card);border:1px solid var(--line);
+    border-radius:var(--radius);padding:18px 18px;margin-bottom:12px;
+  }
+  .next{border:1.5px solid var(--teal);position:relative}
+  .next .flag{
+    position:absolute;top:-9px;left:16px;background:var(--teal);color:#fff;
+    font-size:.7rem;letter-spacing:.08em;padding:1px 10px;border-radius:999px;
+  }
+
+  .when{display:flex;align-items:baseline;gap:10px;margin-bottom:6px}
+  .date{font-size:1.12rem;font-weight:700;font-variant-numeric:tabular-nums}
+  .wd{font-size:.85rem;color:var(--ink-2)}
+  .time{margin-left:auto;font-size:.95rem;color:var(--ink-2);font-variant-numeric:tabular-nums}
+  .what{font-size:.95rem;color:var(--ink-2)}
+  .what b{color:var(--ink);font-weight:600}
+  .no{font-size:.78rem;color:var(--ink-2);margin-top:4px}
+
+  .sectitle{
+    font-size:.76rem;letter-spacing:.1em;color:var(--ink-2);
+    margin:26px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--line);
+  }
+  .past{opacity:.55}
+
+  .empty{text-align:center;color:var(--ink-2);padding:40px 20px}
+
+  label{display:block;font-size:.86rem;color:var(--ink-2);margin:14px 0 6px}
+  input,select{
+    width:100%;padding:12px 14px;font-size:1rem;font-family:inherit;
+    border:1px solid var(--line);border-radius:10px;
+    background:var(--card);color:var(--ink);
+  }
+  input:focus,select:focus{outline:2px solid var(--teal);outline-offset:1px;border-color:var(--teal)}
+  button{
+    width:100%;margin-top:20px;padding:14px;font-size:1rem;font-weight:700;
+    font-family:inherit;color:#fff;background:var(--teal);
+    border:0;border-radius:10px;cursor:pointer;
+  }
+  button:disabled{opacity:.5;cursor:default}
+  button.ghost{background:transparent;color:var(--teal-deep);border:1px solid var(--line);margin-top:10px}
+  button:focus-visible{outline:2px solid var(--teal-deep);outline-offset:2px}
+
+  .msg{
+    border-radius:10px;padding:12px 14px;font-size:.9rem;margin-top:16px;
+    background:rgba(252,64,103,.1);color:var(--pink);
+  }
+  .hint{font-size:.85rem;color:var(--ink-2);margin-top:10px}
+
+  .center{text-align:center;padding:60px 20px;color:var(--ink-2)}
+  .spin{
+    width:26px;height:26px;margin:0 auto 14px;border-radius:50%;
+    border:2.5px solid var(--line);border-top-color:var(--teal);
+    animation:sp .8s linear infinite;
+  }
+  @keyframes sp{to{transform:rotate(360deg)}}
+  @media (prefers-reduced-motion:reduce){ .spin{animation:none} }
+  .hidden{display:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div id="loading" class="center">
+    <div class="spin"></div>
+    <div>載入中…</div>
+  </div>
+
+  <!-- 綁定：選身分 -->
+  <div id="pickRole" class="hidden">
+    <header>
+      <p class="hi">第一次使用</p>
+      <h1>請先確認身分</h1>
+    </header>
+    <div class="card">
+      <p style="margin:0 0 4px">確認之後，你的課表就會直接顯示在這裡，之後打開就不用再填了喔。</p>
+    </div>
+    <button onclick="showParent()">我是家長</button>
+    <button class="ghost" onclick="showTeacher()">我是老師</button>
+  </div>
+
+  <!-- 綁定：家長 -->
+  <div id="parentForm" class="hidden">
+    <header><h1>家長確認</h1></header>
+    <div class="card">
+      <label for="student">學員姓名</label>
+      <input id="student" type="text" placeholder="請填完整姓名" autocomplete="off">
+      <label for="order">訂單編號</label>
+      <input id="order" type="text" placeholder="例如 #5867" autocomplete="off">
+      <p class="hint">訂單編號在報名完成的通知信裡，有沒有 # 都可以。</p>
+      <button id="pBtn" onclick="doBindParent()">確認</button>
+      <div id="pMsg" class="msg hidden"></div>
+    </div>
+    <button class="ghost" onclick="back()">返回</button>
+  </div>
+
+  <!-- 綁定：老師 -->
+  <div id="teacherForm" class="hidden">
+    <header><h1>老師確認</h1></header>
+    <div class="card">
+      <label for="tsel">請選擇你的姓名</label>
+      <select id="tsel"><option value="">載入中…</option></select>
+      <button id="tBtn" onclick="doBindTeacher()">確認</button>
+      <div id="tMsg" class="msg hidden"></div>
+    </div>
+    <button class="ghost" onclick="back()">返回</button>
+  </div>
+
+  <!-- 課表 -->
+  <div id="schedule" class="hidden">
+    <header>
+      <p class="hi" id="greet"></p>
+      <h1>我的課表<span class="role" id="roleTag"></span></h1>
+    </header>
+    <div id="list"></div>
+  </div>
+
+  <!-- 錯誤 -->
+  <div id="errBox" class="hidden">
+    <header><h1>沒辦法載入</h1></header>
+    <div class="card"><p id="errText" style="margin:0"></p></div>
+    <button class="ghost" onclick="location.reload()">重新載入</button>
+  </div>
+
+</div>
+
+<script>
+  // 設定：LIFF 與後端 API 位址
+  // 兩者都不是機密，可以放在公開的前端程式碼裡。
+  const CONFIG = {
+    LIFF_ID: '__LIFF_ID__',
+    GAS_URL: '__GAS_URL__'
+  };
+
+  let userId = '';
+  let displayName = '';
+
+  /** 顯示指定畫面，其餘隱藏。 */
+  function show(id) {
+    ['loading','pickRole','parentForm','teacherForm','schedule','errBox']
+      .forEach(function (k) {
+        document.getElementById(k).classList.toggle('hidden', k !== id);
+      });
+  }
+
+  /** 顯示錯誤畫面。 */
+  function fail(text) {
+    document.getElementById('errText').textContent = text;
+    show('errBox');
+  }
+
+  /** 呼叫後端 API。 */
+  async function api(params) {
+    const qs = new URLSearchParams(params).toString();
+    const res = await fetch(CONFIG.GAS_URL + '?' + qs, { method: 'GET' });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    return res.json();
+  }
+
+  /** 啟動：初始化 LIFF、取得身分、載入課表。 */
+  async function start() {
+    try {
+      await liff.init({ liffId: CONFIG.LIFF_ID });
+      if (!liff.isLoggedIn()) { liff.login({ redirectUri: location.href }); return; }
+      const profile = await liff.getProfile();
+      userId = profile.userId;
+      displayName = profile.displayName;
+      await loadSchedule();
+    } catch (err) {
+      console.error(err);
+      fail('請從 LINE 裡開啟這個頁面。如果已經是從 LINE 開啟仍看到這個訊息，請聯繫客服。');
+    }
+  }
+
+  /** 載入課表；未綁定則導向身分確認。 */
+  async function loadSchedule() {
+    show('loading');
+    try {
+      const data = await api({ action: 'mySchedule', uid: userId });
+      if (data.needBinding) { show('pickRole'); return; }
+      if (!data.ok) { fail(data.error || '載入失敗'); return; }
+      render(data);
+    } catch (err) {
+      console.error(err);
+      fail('連線不順，請稍後再試一次。');
+    }
+  }
+
+  /** 把課表資料畫出來。 */
+  function render(data) {
+    document.getElementById('greet').textContent = data.displayName + '，你好';
+    document.getElementById('roleTag').textContent = data.role;
+
+    const list = document.getElementById('list');
+    list.innerHTML = '';
+
+    const upcoming = data.lessons.filter(function (l) { return !l.past; });
+    const past = data.lessons.filter(function (l) { return l.past; });
+
+    if (!data.lessons.length) {
+      list.innerHTML = '<div class="empty">目前沒有排定的課程。<br>如果這跟你認知的不一樣，請聯繫客服協助喔。</div>';
+      show('schedule');
+      return;
+    }
+
+    upcoming.forEach(function (l, i) {
+      list.appendChild(lessonCard(l, i === 0));
+    });
+
+    if (past.length) {
+      const t = document.createElement('div');
+      t.className = 'sectitle';
+      t.textContent = '已上過的課';
+      list.appendChild(t);
+      past.reverse().forEach(function (l) { list.appendChild(lessonCard(l, false)); });
+    }
+
+    show('schedule');
+  }
+
+  /** 產生一張課次卡片。 */
+  function lessonCard(l, isNext) {
+    const el = document.createElement('div');
+    el.className = 'card' + (isNext ? ' next' : '') + (l.past ? ' past' : '');
+    const who = l.student ? '<b>' + esc(l.student) + '</b>　' : '';
+    el.innerHTML =
+      (isNext ? '<span class="flag">最近一堂</span>' : '') +
+      '<div class="when">' +
+        '<span class="date">' + esc(l.date.slice(5).replace('-', '/')) + '</span>' +
+        '<span class="wd">' + esc(l.weekday) + '</span>' +
+        '<span class="time">' + esc(l.time || '') + '</span>' +
+      '</div>' +
+      '<div class="what">' + who + esc(l.course || '') + '</div>' +
+      '<div class="no">第 ' + l.lessonNo + ' 堂　講師：' + esc(l.teacher || '待定') + '</div>';
+    return el;
+  }
+
+  /** escape，避免資料裡的字元破壞版面。 */
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' })[c];
+    });
+  }
+
+  function back() { show('pickRole'); }
+  function showParent() { show('parentForm'); }
+
+  /** 開啟老師確認畫面，載入姓名清單。 */
+  async function showTeacher() {
+    show('teacherForm');
+    const sel = document.getElementById('tsel');
+    try {
+      const data = await api({ action: 'teacherList' });
+      sel.innerHTML = '<option value="">請選擇</option>';
+      (data.teachers || []).forEach(function (t) {
+        const o = document.createElement('option');
+        o.value = t.name;
+        o.textContent = t.name + (t.bound ? '（已確認）' : '');
+        sel.appendChild(o);
+      });
+    } catch (err) {
+      sel.innerHTML = '<option value="">載入失敗</option>';
+    }
+  }
+
+  /** 送出家長身分確認。 */
+  async function doBindParent() {
+    const student = document.getElementById('student').value.trim();
+    const order = document.getElementById('order').value.trim();
+    const msg = document.getElementById('pMsg');
+    const btn = document.getElementById('pBtn');
+    msg.classList.add('hidden');
+    if (!student || !order) { return showMsg(msg, '請填寫學員姓名與訂單編號'); }
+
+    btn.disabled = true; btn.textContent = '確認中…';
+    try {
+      const r = await api({ action: 'bindParent', uid: userId, student: student, order: order });
+      if (!r.ok) { showMsg(msg, r.error); return; }
+      await loadSchedule();
+    } catch (err) {
+      showMsg(msg, '連線不順，請稍後再試一次');
+    } finally {
+      btn.disabled = false; btn.textContent = '確認';
+    }
+  }
+
+  /** 送出老師身分確認。 */
+  async function doBindTeacher() {
+    const name = document.getElementById('tsel').value;
+    const msg = document.getElementById('tMsg');
+    const btn = document.getElementById('tBtn');
+    msg.classList.add('hidden');
+    if (!name) { return showMsg(msg, '請選擇姓名'); }
+
+    btn.disabled = true; btn.textContent = '確認中…';
+    try {
+      const r = await api({ action: 'bindTeacher', uid: userId, name: name });
+      if (!r.ok) { showMsg(msg, r.error); return; }
+      await loadSchedule();
+    } catch (err) {
+      showMsg(msg, '連線不順，請稍後再試一次');
+    } finally {
+      btn.disabled = false; btn.textContent = '確認';
+    }
+  }
+
+  /** 顯示表單錯誤訊息。 */
+  function showMsg(el, text) {
+    el.textContent = text || '發生問題，請聯繫客服';
+    el.classList.remove('hidden');
+  }
+
+  start();
+</script>
+</body>
+</html>
