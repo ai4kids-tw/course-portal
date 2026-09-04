@@ -122,7 +122,8 @@
 
   <div id="loading" class="center">
     <div class="spin"></div>
-    <div>載入中…</div>
+    <div id="loadingText">載入中…</div>
+    <div class="hint" style="margin-top:10px">第一次開啟需要幾秒鐘</div>
   </div>
 
   <!-- 綁定：選身分 -->
@@ -226,6 +227,9 @@
       const profile = await liff.getProfile();
       userId = profile.userId;
       displayName = profile.displayName;
+      // LINE 身分很快就拿到，先打招呼再等後端，避免盯著空畫面
+      const lt = document.getElementById('loadingText');
+      if (lt) lt.textContent = displayName + '，正在為你載入課表…';
       await loadSchedule();
     } catch (err) {
       console.error(err);
@@ -236,6 +240,8 @@
   /** 載入課表；未綁定則導向身分確認。 */
   async function loadSchedule() {
     show('loading');
+    const lt = document.getElementById('loadingText');
+    if (lt && displayName) lt.textContent = displayName + '，正在為你載入課表…';
     try {
       const data = await api({ action: 'mySchedule', uid: userId });
       if (data.needBinding) { show('pickRole'); return; }
