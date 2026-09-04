@@ -174,6 +174,7 @@
       <h1>我的課表<span class="role" id="roleTag"></span></h1>
     </header>
     <div id="list"></div>
+    <button class="ghost" onclick="showParent()" id="addBtn">新報名的課程沒出現？用另一個 Email 加入</button>
     <button class="ghost" id="unbindBtn" onclick="doUnbind()">不是你本人？重新確認身分</button>
   </div>
 
@@ -257,6 +258,9 @@
   function render(data) {
     document.getElementById('greet').textContent = data.displayName + '，你好';
     document.getElementById('roleTag').textContent = data.role;
+    // 只有家長會遇到「換了 Email 報名」的情況，老師不需要這個入口
+    const addBtn = document.getElementById('addBtn');
+    if (addBtn) addBtn.classList.toggle('hidden', data.role !== '家長');
 
     const list = document.getElementById('list');
     list.innerHTML = '';
@@ -265,7 +269,14 @@
     const past = data.lessons.filter(function (l) { return l.past; });
 
     if (!data.lessons.length) {
-      list.innerHTML = '<div class="empty">目前沒有排定的課程。<br>如果這跟你認知的不一樣，請聯繫客服協助喔。</div>';
+      list.innerHTML =
+        '<div class="empty">目前沒有排定的課程。<br>' +
+        '如果最近有新報名，可能是這次填了不同的 Email。</div>';
+      const add = document.createElement('button');
+      add.className = 'ghost';
+      add.textContent = '用另一個 Email 加入課程';
+      add.addEventListener('click', showParent);
+      list.appendChild(add);
       show('schedule');
       return;
     }
