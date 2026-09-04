@@ -60,6 +60,21 @@
     border:1px solid var(--line);font-weight:500;font-size:.88rem;padding:8px 12px;
   }
   .join:focus-visible{outline:2px solid var(--teal-deep);outline-offset:2px}
+  .leave{
+    display:block;width:100%;margin-top:8px;padding:8px 12px;
+    background:transparent;color:var(--ink-2);border:1px solid var(--line);
+    border-radius:9px;font-size:.85rem;font-family:inherit;cursor:pointer;font-weight:500;
+  }
+  .sheet{
+    position:fixed;inset:0;background:rgba(10,26,46,.55);
+    display:flex;align-items:flex-end;justify-content:center;z-index:50;
+  }
+  .sheet .panel{
+    background:var(--card);width:100%;max-width:560px;
+    border-radius:16px 16px 0 0;padding:22px 18px calc(22px + env(safe-area-inset-bottom));
+  }
+  .sheet h2{font-size:1.15rem;margin:0 0 4px}
+  .sheet .sub{font-size:.9rem;color:var(--ink-2);margin:0 0 4px}
 
   .sectitle{
     font-size:.76rem;letter-spacing:.1em;color:var(--ink-2);
@@ -278,7 +293,16 @@
       '</div>' +
       '<div class="what">' + who + esc(l.course || '') + '</div>' +
       '<div class="no">第 ' + l.lessonNo + ' 堂　講師：' + esc(l.teacher || '待定') + '</div>' +
-      joinLink(l, isNext);
+      joinLink(l, isNext) +
+      (l.canLeave
+        ? '<button class="leave" data-row="' + l.rowIndex + '" data-lesson="' + l.lessonNo +
+          '" data-date="' + esc(l.date) + '">我要請假</button>'
+        : '');
+    if (l.canLeave) {
+      el.querySelector('.leave').addEventListener('click', function () {
+        openLeaveSheet(l);
+      });
+    }
     return el;
   }
 
@@ -290,6 +314,78 @@
     if (!l.meetUrl || l.past) return '';
     return '<a class="join' + (isNext ? '' : ' quiet') + '" href="' + esc(l.meetUrl) +
            '" target="_blank" rel="noopener">進入教室</a>';
+  }
+
+  let pendingLeave = null;
+
+  /** 開啟請假確認面板。刻意要多一步確認，避免誤觸把課順延掉。 */
+  function openLeaveSheet(l) {
+    pendingLeave = l;
+    const wrap = document.createElement('div');
+    wrap.className = 'sheet';
+    wrap.id = 'leaveSheet';
+    wrap.innerHTML =
+      '<div class="panel">' +
+        '<h2>要為這一堂請假嗎？</h2>' +
+        '<p class="sub">' + esc(l.date) + '（' + esc(l.weekday) + '）' + esc(l.time || '') + '</p>' +
+        '<p class="sub">' + esc(l.course || '') + '　第 ' + l.lessonNo + ' 堂</p>' +
+        '<label for="lr">請假原因</label>' +
+        '<select id="lr">' +
+          '<option value="">請選擇原因</option>' +
+          '<option value="生病">生病</option>' +
+          '<option value="家庭因素">家庭因素</option>' +
+          '<option value="學校活動">學校活動</option>' +
+          '<option value="其他">其他（請說明）</option>' +
+        '</select>' +
+        '<div id="otherWrap" class="hidden">' +
+          '<label for="lo">請簡單說明</label>' +
+          '<input id="lo" type="text" autocomplete="off">' +
+        '</div>' +
+        '<button id="lSubmit">確認請假</button>' +
+        '<button class="ghost" id="lCancel">先不要</button>' +
+        '<div id="lMsg" class="msg hidden"></div>' +
+      '</div>';
+    document.body.appendChild(wrap);
+    document.getElementById('lr').addEventListener('change', function () {
+      document.getElementById('otherWrap').classList.toggle('hidden', this.value !== '其他');
+    });
+    document.getElementById('lCancel').addEventListener('click', closeLeaveSheet);
+    document.getElementById('lSubmit').addEventListener('click', doRequestLeave);
+  }
+
+  /** 關閉請假面板。 */
+  function closeLeaveSheet() {
+    const el = document.getElementById('leaveSheet');
+    if (el) el.remove();
+    pendingLeave = null;
+  }
+
+  /** 送出請假。 */
+  async function doRequestLeave() {
+    const reason = document.getElementById('lr').value;
+    const other = (document.getElementById('lo') || {}).value || '';
+    const msg = document.getElementById('lMsg');
+    const btn = document.getElementById('lSubmit');
+    msg.classList.add('hidden');
+    if (!reason) { return showMsg(msg, '請選擇請假原因'); }
+    if (reason === '其他' && !other.trim()) { return showMsg(msg, '請簡單說明原因'); }
+
+    btn.disabled = true; btn.textContent = '處理中…';
+    try {
+      const r = await api({
+        action: 'requestLeave', uid: userId,
+        rowIndex: pendingLeave.rowIndex, lessonIndex: pendingLeave.lessonNo,
+        reason: reason, other: other
+      });
+      if (!r.ok) { showMsg(msg, r.error); return; }
+      closeLeaveSheet();
+      alert(r.message || '已完成請假，課表已更新。');
+      await loadSchedule();
+    } catch (err) {
+      showMsg(msg, '連線不順，請稍後再試一次');
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = '確認請假'; }
+    }
   }
 
   /** escape，避免資料裡的字元破壞版面。 */
