@@ -50,6 +50,16 @@
   .what{font-size:.95rem;color:var(--ink-2)}
   .what b{color:var(--ink);font-weight:600}
   .no{font-size:.78rem;color:var(--ink-2);margin-top:4px}
+  .join{
+    display:block;margin-top:12px;padding:11px 14px;
+    background:var(--teal);color:#fff;text-align:center;
+    font-size:.95rem;font-weight:700;text-decoration:none;border-radius:9px;
+  }
+  .join.quiet{
+    background:transparent;color:var(--teal-deep);
+    border:1px solid var(--line);font-weight:500;font-size:.88rem;padding:8px 12px;
+  }
+  .join:focus-visible{outline:2px solid var(--teal-deep);outline-offset:2px}
 
   .sectitle{
     font-size:.76rem;letter-spacing:.1em;color:var(--ink-2);
@@ -267,8 +277,19 @@
         '<span class="time">' + esc(l.time || '') + '</span>' +
       '</div>' +
       '<div class="what">' + who + esc(l.course || '') + '</div>' +
-      '<div class="no">第 ' + l.lessonNo + ' 堂　講師：' + esc(l.teacher || '待定') + '</div>';
+      '<div class="no">第 ' + l.lessonNo + ' 堂　講師：' + esc(l.teacher || '待定') + '</div>' +
+      joinLink(l, isNext);
     return el;
+  }
+
+  /**
+   * 上課連結。最近一堂用實心按鈕，其餘用淡的，
+   * 已上過的課就不再顯示，避免誤點進空教室。
+   */
+  function joinLink(l, isNext) {
+    if (!l.meetUrl || l.past) return '';
+    return '<a class="join' + (isNext ? '' : ' quiet') + '" href="' + esc(l.meetUrl) +
+           '" target="_blank" rel="noopener">進入教室</a>';
   }
 
   /** escape，避免資料裡的字元破壞版面。 */
