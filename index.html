@@ -60,6 +60,8 @@
     border:1px solid var(--line);font-weight:500;font-size:.88rem;padding:8px 12px;
   }
   .join:focus-visible{outline:2px solid var(--teal-deep);outline-offset:2px}
+  .sub.warn{color:var(--ink);background:#fff6e5;border:1px solid #e8ba51;
+    padding:9px 11px;border-radius:8px;line-height:1.55}
   .cls{
     display:block;margin-top:8px;padding:8px 12px;
     background:transparent;color:var(--ink-2);text-align:center;
@@ -272,10 +274,12 @@
     const list = document.getElementById('list');
     list.innerHTML = '';
 
-    const upcoming = data.lessons.filter(function (l) { return !l.past; });
-    const past = data.lessons.filter(function (l) { return l.past; });
+    // 團體班同一堂會有多筆（一位學員一列），收成一張再顯示
+    const lessons = mergeGroupLessons(data.lessons);
+    const upcoming = lessons.filter(function (l) { return !l.past; });
+    const past = lessons.filter(function (l) { return l.past; });
 
-    if (!data.lessons.length) {
+    if (!lessons.length) {
       list.innerHTML =
         '<div class="empty">目前沒有排定的課程。<br>' +
         '如果最近有新報名，可能是這次填了不同的 Email。</div>';
@@ -303,6 +307,36 @@
     show('schedule');
   }
 
+  /**
+   * 團體班收合。
+   *
+   * 課表後端是「一位學員一列」，所以團體班同一堂會回傳好幾筆
+   * （2 位學員就 2 筆）。家長只看得到自己的孩子沒差，
+   * **但老師會看到同一時段重複好幾張卡**，而且老師請假是整班順延，
+   * 不管點哪一張結果都一樣——重複顯示只會讓人以為要點很多次。
+   *
+   * 同「團體班代碼＋日期＋堂次」的收成一張，學員名合併顯示。
+   */
+  function mergeGroupLessons(list) {
+    const seen = {};
+    const out = [];
+    list.forEach(function (l) {
+      if (!l.groupCode) { out.push(l); return; }
+      const k = l.groupCode + '|' + l.date + '|' + l.lessonNo;
+      if (seen[k]) {
+        if (l.student && seen[k].student.indexOf(l.student) < 0) {
+          seen[k].student += '、' + l.student;
+        }
+        return;
+      }
+      const copy = {};
+      Object.keys(l).forEach(function (x) { copy[x] = l[x]; });
+      seen[k] = copy;
+      out.push(copy);
+    });
+    return out;
+  }
+
   /** 產生一張課次卡片。 */
   function lessonCard(l, isNext) {
     const el = document.createElement('div');
@@ -322,10 +356,19 @@
       (l.canLeave
         ? '<button class="leave" data-row="' + l.rowIndex + '" data-lesson="' + l.lessonNo +
           '" data-date="' + esc(l.date) + '">我要請假</button>'
+        : '') +
+      (l.canTeacherLeave
+        ? '<button class="leave tleave">我要請假（' +
+          (l.groupCode ? '整班順延' : '順延一週') + '）</button>'
         : '');
     if (l.canLeave) {
       el.querySelector('.leave').addEventListener('click', function () {
         openLeaveSheet(l);
+      });
+    }
+    if (l.canTeacherLeave) {
+      el.querySelector('.tleave').addEventListener('click', function () {
+        openTeacherLeaveSheet(l);
       });
     }
     return el;
@@ -418,6 +461,78 @@
       if (!r.ok) { showMsg(msg, r.error); return; }
       closeLeaveSheet();
       alert(r.message || '已完成請假，課表已更新。');
+      await loadSchedule();
+    } catch (err) {
+      showMsg(msg, '連線不順，請稍後再試一次');
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = '確認請假'; }
+    }
+  }
+
+  let pendingTeacherLeave = null;
+
+  /**
+   * 老師請假的確認面板。
+   *
+   * 刻意跟家長版分開，因為後果不同：家長請假只影響自己的孩子，
+   * **老師請假會把整班的課往後推、通知每一位家長**。
+   * 面板上要講清楚會影響誰，不能讓老師以為只是標記一下自己不來。
+   */
+  function openTeacherLeaveSheet(l) {
+    pendingTeacherLeave = l;
+    const who = l.groupCode
+      ? '這是團體班，<b>全班（' + esc(l.student || '') + '）的課都會往後順延一週</b>，每位家長都會收到通知。'
+      : '<b>' + esc(l.student || '') + '</b> 這堂之後的課都會往後順延一週，家長會收到通知。';
+    const wrap = document.createElement('div');
+    wrap.className = 'sheet';
+    wrap.id = 'tLeaveSheet';
+    wrap.innerHTML =
+      '<div class="panel">' +
+        '<h2>要為這一堂請假嗎？</h2>' +
+        '<p class="sub">' + esc(l.date) + '（' + esc(l.weekday) + '）' + esc(l.time || '') + '</p>' +
+        '<p class="sub">' + esc(l.course || '') + '　第 ' + l.lessonNo + ' 堂</p>' +
+        '<p class="sub warn">' + who + '</p>' +
+        '<label for="tr">請假原因</label>' +
+        '<select id="tr">' +
+          '<option value="">請選擇原因</option>' +
+          '<option value="臨時有事">臨時有事</option>' +
+          '<option value="生病">生病</option>' +
+          '<option value="其他">其他</option>' +
+        '</select>' +
+        '<button id="tSubmit">確認請假</button>' +
+        '<button class="ghost" id="tCancel">先不要</button>' +
+        '<div id="tMsg" class="msg hidden"></div>' +
+      '</div>';
+    document.body.appendChild(wrap);
+    document.getElementById('tCancel').addEventListener('click', closeTeacherLeaveSheet);
+    document.getElementById('tSubmit').addEventListener('click', doTeacherLeave);
+  }
+
+  /** 關閉老師請假面板。 */
+  function closeTeacherLeaveSheet() {
+    const el = document.getElementById('tLeaveSheet');
+    if (el) el.remove();
+    pendingTeacherLeave = null;
+  }
+
+  /** 送出老師請假。 */
+  async function doTeacherLeave() {
+    const reason = document.getElementById('tr').value;
+    const msg = document.getElementById('tMsg');
+    const btn = document.getElementById('tSubmit');
+    msg.classList.add('hidden');
+    if (!reason) { return showMsg(msg, '請選擇請假原因'); }
+
+    btn.disabled = true; btn.textContent = '處理中…';
+    try {
+      const r = await api({
+        action: 'teacherLeave', uid: userId,
+        row: pendingTeacherLeave.rowIndex, lesson: pendingTeacherLeave.lessonNo,
+        reason: reason
+      });
+      if (!r.ok) { showMsg(msg, r.error); return; }
+      closeTeacherLeaveSheet();
+      alert(r.message || '已完成請假，家長會收到通知。');
       await loadSchedule();
     } catch (err) {
       showMsg(msg, '連線不順，請稍後再試一次');
