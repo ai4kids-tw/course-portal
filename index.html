@@ -60,6 +60,13 @@
     border:1px solid var(--line);font-weight:500;font-size:.88rem;padding:8px 12px;
   }
   .join:focus-visible{outline:2px solid var(--teal-deep);outline-offset:2px}
+  .cls{
+    display:block;margin-top:8px;padding:8px 12px;
+    background:transparent;color:var(--ink-2);text-align:center;
+    border:1px solid var(--line);border-radius:9px;
+    font-size:.88rem;font-weight:500;text-decoration:none;
+  }
+  .cls:focus-visible{outline:2px solid var(--teal-deep);outline-offset:2px}
   .leave{
     display:block;width:100%;margin-top:8px;padding:8px 12px;
     background:transparent;color:var(--ink-2);border:1px solid var(--line);
@@ -311,6 +318,7 @@
       '<div class="what">' + who + esc(l.course || '') + '</div>' +
       '<div class="no">第 ' + l.lessonNo + ' 堂　講師：' + esc(l.teacher || '待定') + '</div>' +
       joinLink(l, isNext) +
+      classroomLink(l) +
       (l.canLeave
         ? '<button class="leave" data-row="' + l.rowIndex + '" data-lesson="' + l.lessonNo +
           '" data-date="' + esc(l.date) + '">我要請假</button>'
@@ -331,6 +339,19 @@
     if (!l.meetUrl || l.past) return '';
     return '<a class="join' + (isNext ? '' : ' quiet') + '" href="' + esc(l.meetUrl) +
            '" target="_blank" rel="noopener">進入教室</a>';
+  }
+
+  /**
+   * Classroom 入口。
+   *
+   * 跟「進入教室」不同，**已上過的課也照樣顯示**——
+   * Meet 連結課後點進去是空教室，但 Classroom 課後才是最常用的
+   * （看作業、教材、老師的回饋）。
+   */
+  function classroomLink(l) {
+    if (!l.classroomUrl) return '';
+    return '<a class="cls" href="' + esc(l.classroomUrl) +
+           '" target="_blank" rel="noopener">課程教室 Classroom</a>';
   }
 
   let pendingLeave = null;
