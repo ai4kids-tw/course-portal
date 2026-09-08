@@ -75,11 +75,24 @@
     font-size:.88rem;font-weight:500;text-decoration:none;
   }
   .cls:focus-visible{outline:2px solid var(--teal-deep);outline-offset:2px}
-  .guide{
-    display:block;margin-top:14px;padding:9px;text-align:center;
-    color:var(--ink-2);font-size:.85rem;text-decoration:none;
+  /* 使用說明的入口刻意**不用三個點**——LIFF 外框的右上角已經有
+     LINE 自己的 ⋮ 和 ✕，再放一個長得一樣的圖示只會讓人分不清誰是誰。
+     改成標題旁的圓形「？」，位置與造型都不衝突。 */
+  .help{
+    display:inline-flex;align-items:center;justify-content:center;
+    width:24px;height:24px;margin-left:8px;vertical-align:middle;
+    border:1px solid var(--line);border-radius:999px;
+    color:var(--ink-2);font-size:.8rem;font-weight:700;text-decoration:none;
+    background:#fff;line-height:1;
   }
-  .guide:hover{text-decoration:underline}
+  .help:active{background:var(--teal);color:#fff;border-color:var(--teal)}
+  /* 第一次使用的人最需要說明，所以身分確認頁給它一個看得見的位置 */
+  .guideLink{
+    display:block;margin-top:16px;padding:10px;text-align:center;
+    color:var(--teal-deep);font-size:.88rem;font-weight:600;
+    text-decoration:none;border:1px dashed var(--line);border-radius:9px;
+  }
+  .guideLink:active{background:#f2fbfc}
   .leave{
     display:block;width:100%;margin-top:8px;padding:8px 12px;
     background:transparent;color:var(--ink-2);border:1px solid var(--line);
@@ -157,6 +170,8 @@
     </div>
     <button onclick="showParent()">我是家長</button>
     <button class="ghost" onclick="showTeacher()">我是老師</button>
+    <a class="guideLink" href="guide.html" target="_blank" rel="noopener">
+      第一次使用？看操作說明（含畫面示意）</a>
   </div>
 
   <!-- 綁定：家長 -->
@@ -191,13 +206,14 @@
   <div id="schedule" class="hidden">
     <header>
       <p class="hi" id="greet"></p>
-      <h1>我的課表<span class="role" id="roleTag"></span></h1>
+      <h1>我的課表<span class="role" id="roleTag"></span><!--
+        --><a class="help" href="guide.html" target="_blank" rel="noopener"
+              aria-label="使用說明" title="使用說明">？</a></h1>
     </header>
     <div id="list"></div>
     <button class="ghost" onclick="showParent()" id="addBtn">新報名的課程沒出現？用另一個 Email 加入</button>
     <button class="ghost" id="unbindBtn" onclick="doUnbind()">不是你本人？重新確認身分</button>
-    <!-- 使用說明放在課表最下面：需要的人找得到，不需要的人不會被擋住 -->
-    <a class="guide" href="guide.html" target="_blank" rel="noopener">使用說明</a>
+
   </div>
 
   <!-- 錯誤 -->
