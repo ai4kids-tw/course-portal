@@ -75,6 +75,11 @@
     font-size:.88rem;font-weight:500;text-decoration:none;
   }
   .cls:focus-visible{outline:2px solid var(--teal-deep);outline-offset:2px}
+  .guide{
+    display:block;margin-top:14px;padding:9px;text-align:center;
+    color:var(--ink-2);font-size:.85rem;text-decoration:none;
+  }
+  .guide:hover{text-decoration:underline}
   .leave{
     display:block;width:100%;margin-top:8px;padding:8px 12px;
     background:transparent;color:var(--ink-2);border:1px solid var(--line);
@@ -191,6 +196,8 @@
     <div id="list"></div>
     <button class="ghost" onclick="showParent()" id="addBtn">新報名的課程沒出現？用另一個 Email 加入</button>
     <button class="ghost" id="unbindBtn" onclick="doUnbind()">不是你本人？重新確認身分</button>
+    <!-- 使用說明放在課表最下面：需要的人找得到，不需要的人不會被擋住 -->
+    <a class="guide" href="guide.html" target="_blank" rel="noopener">使用說明</a>
   </div>
 
   <!-- 錯誤 -->
