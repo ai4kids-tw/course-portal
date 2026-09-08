@@ -60,6 +60,12 @@
     border:1px solid var(--line);font-weight:500;font-size:.88rem;padding:8px 12px;
   }
   .join:focus-visible{outline:2px solid var(--teal-deep);outline-offset:2px}
+  .summon{
+    display:block;width:100%;margin-top:8px;padding:9px 12px;
+    background:#fff6e5;color:#8a6300;border:1px solid #e8ba51;
+    border-radius:9px;font-size:.9rem;font-weight:600;cursor:pointer;
+  }
+  .summon:disabled{opacity:.65;cursor:default}
   .sub.warn{color:var(--ink);background:#fff6e5;border:1px solid #e8ba51;
     padding:9px 11px;border-radius:8px;line-height:1.55}
   .cls{
@@ -360,7 +366,8 @@
       (l.canTeacherLeave
         ? '<button class="leave tleave">我要請假（' +
           (l.groupCode ? '整班順延' : '順延一週') + '）</button>'
-        : '');
+        : '') +
+      (canSummonNow(l) ? '<button class="summon">對方還沒上線，通知他</button>' : '');
     if (l.canLeave) {
       el.querySelector('.leave').addEventListener('click', function () {
         openLeaveSheet(l);
@@ -371,6 +378,8 @@
         openTeacherLeaveSheet(l);
       });
     }
+    const sm = el.querySelector('.summon');
+    if (sm) sm.addEventListener('click', function () { doSummon(l, sm); });
     return el;
   }
 
@@ -538,6 +547,36 @@
       showMsg(msg, '連線不順，請稍後再試一次');
     } finally {
       if (btn) { btn.disabled = false; btn.textContent = '確認請假'; }
+    }
+  }
+
+  /**
+   * 現在能不能按「通知對方」。
+   *
+   * 由前端判斷而不是後端——課表有 2 分鐘快取，
+   * 後端算好的「現在可不可以按」會過期，時間戳不會。
+   *
+   * 時間窗：上課前 5 分鐘 ～ 結束後 10 分鐘。
+   */
+  function canSummonNow(l) {
+    if (!l.startISO) return false;
+    const now = Date.now();
+    const s = new Date(l.startISO).getTime() - 5 * 60000;
+    const e = new Date(l.endISO || l.startISO).getTime() + 10 * 60000;
+    return now >= s && now <= e;
+  }
+
+  /** 送出課中呼叫。 */
+  async function doSummon(l, btn) {
+    const label = btn.textContent;
+    btn.disabled = true; btn.textContent = '通知中…';
+    try {
+      const r = await api({ action: 'summon', uid: userId, row: l.rowIndex, lesson: l.lessonNo });
+      if (!r.ok) { alert(r.error || '通知未送出'); btn.textContent = label; btn.disabled = false; return; }
+      btn.textContent = '✓ ' + (r.message || '已通知');
+    } catch (err) {
+      alert('連線不順，請稍後再試一次');
+      btn.textContent = label; btn.disabled = false;
     }
   }
 
