@@ -442,6 +442,7 @@
         '<h2>要為這一堂請假嗎？</h2>' +
         '<p class="sub">' + esc(l.date) + '（' + esc(l.weekday) + '）' + esc(l.time || '') + '</p>' +
         '<p class="sub">' + esc(l.course || '') + '　第 ' + l.lessonNo + ' 堂</p>' +
+        afterClassNote(l) +
         '<label for="lr">請假原因</label>' +
         '<select id="lr">' +
           '<option value="">請選擇原因</option>' +
@@ -524,6 +525,7 @@
         '<p class="sub">' + esc(l.date) + '（' + esc(l.weekday) + '）' + esc(l.time || '') + '</p>' +
         '<p class="sub">' + esc(l.course || '') + '　第 ' + l.lessonNo + ' 堂</p>' +
         '<p class="sub warn">' + who + '</p>' +
+        afterClassNote(l) +
         '<label for="tr">請假原因</label>' +
         '<select id="tr">' +
           '<option value="">請選擇原因</option>' +
@@ -545,6 +547,18 @@
     const el = document.getElementById('tLeaveSheet');
     if (el) el.remove();
     pendingTeacherLeave = null;
+  }
+
+  /**
+   * 已經過了上課時間才請假時，顯示的提醒。
+   *
+   * 不擋、只說清楚。當天臨時狀況很多，擋掉只會讓人改走 LINE 找客服，
+   * 連記錄都留不下來；但按的人要知道這一堂仍然會計薪。
+   */
+  function afterClassNote(l) {
+    if (!l.afterClass) return '';
+    return '<p class="sub warn">這一堂的上課時間已經過了。仍然可以請假，' +
+           '課程會順延，我們也會通知客服確認狀況。</p>';
   }
 
   /** 送出老師請假。 */
