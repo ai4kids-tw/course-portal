@@ -531,13 +531,20 @@
           '<option value="">請選擇原因</option>' +
           '<option value="臨時有事">臨時有事</option>' +
           '<option value="生病">生病</option>' +
-          '<option value="其他">其他</option>' +
+          '<option value="其他">其他（請說明）</option>' +
         '</select>' +
+        '<div id="tOtherWrap" class="hidden">' +
+          '<label for="to">請簡單說明</label>' +
+          '<input id="to" type="text" autocomplete="off">' +
+        '</div>' +
         '<button id="tSubmit">確認請假</button>' +
         '<button class="ghost" id="tCancel">先不要</button>' +
         '<div id="tMsg" class="msg hidden"></div>' +
       '</div>';
     document.body.appendChild(wrap);
+    document.getElementById('tr').addEventListener('change', function () {
+      document.getElementById('tOtherWrap').classList.toggle('hidden', this.value !== '其他');
+    });
     document.getElementById('tCancel').addEventListener('click', closeTeacherLeaveSheet);
     document.getElementById('tSubmit').addEventListener('click', doTeacherLeave);
   }
@@ -563,11 +570,16 @@
 
   /** 送出老師請假。 */
   async function doTeacherLeave() {
-    const reason = document.getElementById('tr').value;
+    const picked = document.getElementById('tr').value;
+    const other = ((document.getElementById('to') || {}).value || '').trim();
     const msg = document.getElementById('tMsg');
     const btn = document.getElementById('tSubmit');
     msg.classList.add('hidden');
-    if (!reason) { return showMsg(msg, '請選擇請假原因'); }
+    if (!picked) { return showMsg(msg, '請選擇請假原因'); }
+    if (picked === '其他' && !other) { return showMsg(msg, '請簡單說明原因'); }
+    // 原因會進請假記錄，計薪與稽核要看得懂發生什麼事，
+    // 只留「其他」兩個字等於沒寫。
+    const reason = picked === '其他' ? '其他：' + other : picked;
 
     btn.disabled = true; btn.textContent = '處理中…';
     try {
